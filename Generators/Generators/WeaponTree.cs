@@ -1,4 +1,5 @@
-﻿using MediawikiTranslator.Models.DamageTable.PartsData;
+﻿using DocumentFormat.OpenXml.Math;
+using MediawikiTranslator.Models.DamageTable.PartsData;
 using MediawikiTranslator.Models.Data.MHWI;
 using MediawikiTranslator.Models.WeaponTree;
 using Microsoft.VisualBasic.FileIO;
@@ -542,61 +543,161 @@ namespace MediawikiTranslator.Generators
 			var weapons = new List<Datum>();
 			using (var parser = new TextFieldParser(GenerateStreamFromString(csvFile)))
 			{
-				parser.TextFieldType = FieldType.Delimited;
-				parser.SetDelimiters(delimiter);
-				while (!parser.EndOfData)
+				string[]? lines = csvFile.Split('\n');
+				foreach (String line in lines)
 				{
-					//Processing row
-					string[]? fields = parser.ReadFields();
-					if (fields?.Length == 15 || fields?.Length == 22 || fields?.Length == 29) // Very manual thing that should be modified in case we want more row/make it more generic
-                    {
-                        Datum weapon = ParseWeaponFromLine(fields);
-						weapon.Decos = ParseDecosFromLine(fields);
-						if (fields.Length > 15)
+					if (line.Split(delimiter).Length > 10)
+					{
+
+						//Reformating field that have "," in them so they can be parsed into weapons
+						String cleanedLine = line;
+
+						if (!cleanedLine.Split(delimiter)[16].Contains("n/a"))
 						{
-							List<string[]> sharpnessFinal = [];
-							SharpnessData sharp1 = ParseSharpness1FromLine(fields);
+							String temp = cleanedLine.Split(delimiter)[16];
+                            String sharpnessCleanedLine = sharpnessReformater(line);
+							cleanedLine = sharpnessCleanedLine;
+						}
+						if (!cleanedLine.Split(delimiter)[18].Contains("n/a"))
+						{
+                            String coatingCleanedLine = coatingReformater(cleanedLine, delimiter);
+							cleanedLine = coatingCleanedLine;
+						}
+
+						//Processing row
+						string[]? fields = cleanedLine.Split(delimiter);
+						Datum weapon = ParseWeaponFromLine(fields);
+						weapon.Decos = ParseDecosFromLine(fields);
+						List<string[]> sharpnessFinal = [];
+
+						if (!fields[16].Contains("n/a"))
+						{
+							SharpnessData sharp1 = ParseSharpness1FromLine(fields[16]);
 							sharpnessFinal.Add([sharp1.Red!.Value.ToString(), sharp1.Orange!.Value.ToString(), sharp1.Yellow!.Value.ToString(), sharp1.Green!.Value.ToString(), sharp1.Blue!.Value.ToString(), sharp1.White!.Value.ToString(), sharp1.Purple!.Value.ToString()]);
 							SharpnessData? sharp2 = null;
 							if (fields.Length == 29)
-                            {
-								sharp2 = ParseSharpness2FromLine(fields);
-                            }
-                            else if (duplicateSharpness)
-                            {
-                                sharp2 = sharp1;
-                            }
+							{
+								sharp2 = ParseSharpness2FromLine(fields[17]);
+							}
+							else if (duplicateSharpness)
+							{
+								sharp2 = sharp1;
+							}
 							if (sharp2 != null)
 							{
 								sharpnessFinal.Add([sharp2.Red!.Value.ToString(), sharp2.Orange!.Value.ToString(), sharp2.Yellow!.Value.ToString(), sharp2.Green!.Value.ToString(), sharp2.Blue!.Value.ToString(), sharp2.White!.Value.ToString(), sharp2.Purple!.Value.ToString()]);
 							}
-							weapon.Sharpness = JsonConvert.SerializeObject(sharpnessFinal.ToArray());
-                        }
-                        weapons.Add(weapon);
-                    }
+						}
+						weapon.Sharpness = JsonConvert.SerializeObject(sharpnessFinal.ToArray());
+						weapons.Add(weapon);
+					}
 				}
 			}
 
 			return weapons;
 		}
 
-		// Very straightforward but also sensible
-		private static Datum ParseWeaponFromLine(string[] lineFields)
+		private static String sharpnessReformater(String line){
+			int startIndexSharpness = line.IndexOf("[");
+			int endIndexSharpness = line.IndexOf("]");
+			String substringSharpness = "";
+			String substringSharpnessTwo = "";
+			String SharpnessCleanedline = "";
+
+			if (startIndexSharpness != -1 && endIndexSharpness != -1){
+
+				String subStringBeginningAfterSharpness = line.Substring(endIndexSharpness + 1, line.Length - endIndexSharpness - 1);
+				int startIndexSharpnessTwo = subStringBeginningAfterSharpness.IndexOf("[");
+				int endIndexSharpnessTwo = subStringBeginningAfterSharpness.IndexOf("]");
+
+				substringSharpness = line.Substring(startIndexSharpness, endIndexSharpness - startIndexSharpness + 1);
+				substringSharpnessTwo = line.Substring(endIndexSharpness + 4, endIndexSharpnessTwo - startIndexSharpnessTwo + 1);
+
+				String beginningOfLine = line.Substring(0, startIndexSharpness).Replace("\"","");
+				String endOfLine = line.Substring(startIndexSharpnessTwo + endIndexSharpness + endIndexSharpnessTwo, line.Length - (startIndexSharpnessTwo + endIndexSharpness + endIndexSharpnessTwo));
+				String newLine = substringSharpness.Replace(",", "") + "," + substringSharpnessTwo.Replace(",", "");
+
+				SharpnessCleanedline = beginningOfLine + newLine + endOfLine;
+
+				substringSharpness.Replace(",", "");
+				substringSharpnessTwo.Replace(",", "");
+
+				return SharpnessCleanedline;
+			}
+			return line;
+		}
+
+		private static String coatingReformater(String line, String delimiter)
 		{
-			bool? elementHidden = GetBoolFieldOrEmpty(lineFields[6]);
+			Console.WriteLine(line);
+            String coatingCleanedLine = "";
+			int coatingStartIndex;
+            if (line.IndexOf(",Close Range,") > 0)
+			{
+                return line.Replace("Close Range", "Close-Range");
+
+            }
+            if (line.IndexOf("\"\"\"") != -1)
+			{
+				int firstTrippleQuoteIndex = line.IndexOf("\"\"\"");
+				int secondTrippleQuoteIndex = line.Substring(firstTrippleQuoteIndex + 4).IndexOf("\"\"\"") + firstTrippleQuoteIndex + 4;
+
+				if(secondTrippleQuoteIndex < firstTrippleQuoteIndex)
+				{
+                    coatingStartIndex = line.Substring(firstTrippleQuoteIndex + 4).IndexOf("\"") + firstTrippleQuoteIndex + 4;
+				}
+				else
+				{
+                    coatingStartIndex = line.Substring(secondTrippleQuoteIndex + 4).IndexOf("\"") + secondTrippleQuoteIndex + 4;
+                }
+                Console.WriteLine(firstTrippleQuoteIndex + "  " + secondTrippleQuoteIndex + "  " + coatingStartIndex);
+			}
+			else
+			{
+                coatingStartIndex = line.IndexOf(",\"") + 1;
+				
+            }
+            String coatingSubstring = line.Substring(coatingStartIndex + 1);
+            Console.WriteLine(coatingStartIndex);
+            int coatingSubstringLength = coatingSubstring.IndexOf("\"");
+			coatingSubstring = coatingSubstring.Substring(0, coatingSubstringLength);
+            coatingCleanedLine = line.Replace(coatingSubstring, coatingSubstring.Replace(", ", " ").Replace("Close Range","Close-Range"));
+            return coatingCleanedLine;
+		}
+
+        // Very straightforward but also sensible
+        private static Datum ParseWeaponFromLine(string[] lineFields)
+		{
+			bool? elementHidden = lineFields[9].Contains("(");
 			return new Datum()
 			{
-				Name = lineFields[0],
-				Parent = lineFields[1],
-				Rarity = GetIntFieldOrEmpty(lineFields[2]),
-				Attack = GetIntFieldOrEmpty(lineFields[3]).ToString(),
-				Affinity = GetIntFieldOrEmpty(lineFields[4]),
-				Defense = GetIntFieldOrEmpty(lineFields[5]).ToString(),
-				Element =  lineFields[7],
-				ElementDamage = (elementHidden == true ? "(" : "") + GetIntFieldOrEmpty(lineFields[8]).ToString() + (elementHidden == true ? ")" : ""),
-				Element2 = lineFields[9],
-				ElementDamage2 = GetIntFieldOrEmpty(lineFields[10]).ToString(),
+				CanForge = lineFields[0] != "" ? true : null,
+				CanRollback = lineFields[1] != "" ? true : null,
+				Name = lineFields[2].IndexOf("\"\"") > 0 ? lineFields[2].Substring(1, lineFields[2].Length - 2).Replace("\"\"","\"") : lineFields[2],
+				Parent = lineFields[3].IndexOf("\"\"") > 0 ? lineFields[2].Substring(1, lineFields[3].Length - 2) : lineFields[3],
+                IconType = lineFields[4],
+				Rarity = GetIntFieldOrEmpty(lineFields[5]),
+				Attack = GetIntFieldOrEmpty(lineFields[6]).ToString(),
+				Defense = lineFields[7].Contains("-") ? null : GetIntFieldOrEmpty(lineFields[7]).ToString(),
+				Element = lineFields[8],
+				ElementDamage = (elementHidden == true ? "(" : "") + GetIntFieldOrEmpty(lineFields[9].Replace("(", "").Replace(")", "").ToString()) + (elementHidden == true ? ")" : ""),
+				Affinity = GetIntFieldOrEmpty(lineFields[10]),
 				Elderseal = lineFields[11],
+				//12-15 is Decoration, 16-17 is Sharpness
+				BoCoatings = lineFields[18].Replace("\"", "").Replace(" ", ","),
+				CBPhialType = lineFields[19],
+				Element2 = lineFields[20],
+				ElementDamage2 = GetIntFieldOrEmpty(lineFields[21]).ToString(),
+				GLShellingType = lineFields[22] + " " + lineFields[23],
+				HBGSpecialAmmoType = lineFields[24],
+				HBGDeviation = lineFields[25],
+				HHNote1 = lineFields[26].Replace("Light ", ""),
+				HHNote2 = lineFields[27].Replace("Light ", ""),
+				HHNote3 = lineFields[28].Replace("Light ", ""),
+				IGKinsectBonus = lineFields[29],
+				LBGSpecialAmmoType = lineFields[30],
+				LBGDeviation = lineFields[31],
+				SAPhialType = lineFields[32]
 			};
 		}
 
@@ -619,31 +720,33 @@ namespace MediawikiTranslator.Generators
 			return decoArray + "]";
 		}
 
-		private static SharpnessData ParseSharpness1FromLine(string[] fields)
+		private static SharpnessData ParseSharpness1FromLine(String field)
 		{
+			String[] sharpness = field.Replace("[","").Replace("]","").Replace("\"","").Split(" ");
 			return new SharpnessData()
 			{
-				Red = GetIntFieldOrEmpty(fields[15]),
-				Orange = GetIntFieldOrEmpty(fields[16]),
-				Yellow = GetIntFieldOrEmpty(fields[17]),
-				Green = GetIntFieldOrEmpty(fields[18]),
-				Blue = GetIntFieldOrEmpty(fields[19]),
-				White = GetIntFieldOrEmpty(fields[20]),
-				Purple = GetIntFieldOrEmpty(fields[21]),
+				Red = GetIntFieldOrEmpty(sharpness[0]),
+				Orange = GetIntFieldOrEmpty(sharpness[1]),
+				Yellow = GetIntFieldOrEmpty(sharpness[2]),
+				Green = GetIntFieldOrEmpty(sharpness[3]),
+				Blue = GetIntFieldOrEmpty(sharpness[4]),
+				White = GetIntFieldOrEmpty(sharpness[5]),
+				Purple = GetIntFieldOrEmpty(sharpness[6]),
 			};
 		}
 
-        private static SharpnessData ParseSharpness2FromLine(string[] fields)
+        private static SharpnessData ParseSharpness2FromLine(string field)
         {
+            String[] sharpness = field.Replace("[", "").Replace("]", "").Replace("\"", "").Split(" ");
             return new SharpnessData()
             {
-                Red = GetIntFieldOrEmpty(fields[22]),
-                Orange = GetIntFieldOrEmpty(fields[23]),
-                Yellow = GetIntFieldOrEmpty(fields[24]),
-                Green = GetIntFieldOrEmpty(fields[25]),
-                Blue = GetIntFieldOrEmpty(fields[26]),
-                White = GetIntFieldOrEmpty(fields[27]),
-                Purple = GetIntFieldOrEmpty(fields[28]),
+                Red = GetIntFieldOrEmpty(sharpness[0]),
+                Orange = GetIntFieldOrEmpty(sharpness[1]),
+                Yellow = GetIntFieldOrEmpty(sharpness[2]),
+                Green = GetIntFieldOrEmpty(sharpness[3]),
+                Blue = GetIntFieldOrEmpty(sharpness[4]),
+                White = GetIntFieldOrEmpty(sharpness[5]),
+                Purple = GetIntFieldOrEmpty(sharpness[6]),
             };
         }
 
