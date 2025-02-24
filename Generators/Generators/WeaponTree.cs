@@ -558,7 +558,7 @@ namespace MediawikiTranslator.Generators
                             String sharpnessCleanedLine = sharpnessReformater(line);
 							cleanedLine = sharpnessCleanedLine;
 						}
-						if (!cleanedLine.Split(delimiter)[18].Contains("n/a"))
+						if (!cleanedLine.Split(delimiter)[18].Equals(""))
 						{
                             String coatingCleanedLine = coatingReformater(cleanedLine, delimiter);
 							cleanedLine = coatingCleanedLine;
@@ -566,6 +566,7 @@ namespace MediawikiTranslator.Generators
 
 						//Processing row
 						string[]? fields = cleanedLine.Split(delimiter);
+						Console.Write("This Game has :" + fields.Length + " fields");
 						Datum weapon = ParseWeaponFromLine(fields);
 						weapon.Decos = ParseDecosFromLine(fields);
 						List<string[]> sharpnessFinal = [];
@@ -613,7 +614,7 @@ namespace MediawikiTranslator.Generators
 				substringSharpness = line.Substring(startIndexSharpness, endIndexSharpness - startIndexSharpness + 1);
 				substringSharpnessTwo = line.Substring(endIndexSharpness + 4, endIndexSharpnessTwo - startIndexSharpnessTwo + 1);
 
-				String beginningOfLine = line.Substring(0, startIndexSharpness).Replace("\"","");
+				String beginningOfLine = line.Substring(0, startIndexSharpness).Replace("\"\"", "~").Replace("\"","").Replace("~","\"\"");
 				String endOfLine = line.Substring(startIndexSharpnessTwo + endIndexSharpness + endIndexSharpnessTwo, line.Length - (startIndexSharpnessTwo + endIndexSharpness + endIndexSharpnessTwo));
 				String newLine = substringSharpness.Replace(",", "") + "," + substringSharpnessTwo.Replace(",", "");
 
@@ -673,8 +674,8 @@ namespace MediawikiTranslator.Generators
 			{
 				CanForge = lineFields[0] != "" ? true : null,
 				CanRollback = lineFields[1] != "" ? true : null,
-				Name = lineFields[2].IndexOf("\"\"") > 0 ? lineFields[2].Substring(1, lineFields[2].Length - 2).Replace("\"\"","\"") : lineFields[2],
-				Parent = lineFields[3].IndexOf("\"\"") > 0 ? lineFields[2].Substring(1, lineFields[3].Length - 2) : lineFields[3],
+				Name = lineFields[2].IndexOf("\"\"") > 0 ? lineFields[2].Replace("\"\"","\"") : lineFields[2],
+				Parent = lineFields[3].IndexOf("\"\"") > 0 ? lineFields[3].Substring(1, lineFields[3].Length - 2) : lineFields[3],
                 IconType = lineFields[4],
 				Rarity = GetIntFieldOrEmpty(lineFields[5]),
 				Attack = GetIntFieldOrEmpty(lineFields[6]).ToString(),
@@ -684,20 +685,20 @@ namespace MediawikiTranslator.Generators
 				Affinity = GetIntFieldOrEmpty(lineFields[10]),
 				Elderseal = lineFields[11],
 				//12-15 is Decoration, 16-17 is Sharpness
-				BoCoatings = lineFields[18].Replace("\"", "").Replace(" ", ","),
-				CBPhialType = lineFields[19],
+				BoCoatings = lineFields.Contains("Paralysis") ? lineFields[18].Replace("\"", "").Replace(" ", ",").Replace("Paralysis","Para") : lineFields[18].Replace("\"", "").Replace(" ", ","),
+				CBPhialType = lineFields[19].Replace(" Phial", ""),
 				Element2 = lineFields[20],
 				ElementDamage2 = GetIntFieldOrEmpty(lineFields[21]).ToString(),
 				GLShellingType = lineFields[22] + " " + lineFields[23],
 				HBGSpecialAmmoType = lineFields[24],
 				HBGDeviation = lineFields[25],
-				HHNote1 = lineFields[26].Replace("Light ", ""),
-				HHNote2 = lineFields[27].Replace("Light ", ""),
-				HHNote3 = lineFields[28].Replace("Light ", ""),
+				HHNote1 = lineFields[26].Replace("Blue", "Cyan").Replace("Dark Cyan", "Blue").Replace("Light ", ""),
+				HHNote2 = lineFields[27].Replace("Blue", "Cyan").Replace("Dark Cyan", "Blue").Replace("Light ", ""),
+				HHNote3 = lineFields[28].Replace("Blue", "Cyan").Replace("Dark Cyan", "Blue").Replace("Light ", ""),
 				IGKinsectBonus = lineFields[29],
 				LBGSpecialAmmoType = lineFields[30],
 				LBGDeviation = lineFields[31],
-				SAPhialType = lineFields[32]
+				SAPhialType = lineFields[32].Replace(" Phial","")
 			};
 		}
 
