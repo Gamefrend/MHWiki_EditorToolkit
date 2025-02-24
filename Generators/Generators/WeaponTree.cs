@@ -555,7 +555,7 @@ namespace MediawikiTranslator.Generators
 						if (!cleanedLine.Split(delimiter)[16].Contains("n/a"))
 						{
 							String temp = cleanedLine.Split(delimiter)[16];
-                            String sharpnessCleanedLine = sharpnessReformater(cleanedLine);
+                            String sharpnessCleanedLine = sharpnessReformater(line);
 							cleanedLine = sharpnessCleanedLine;
 						}
 						if (!cleanedLine.Split(delimiter)[18].Equals(""))
@@ -563,27 +563,12 @@ namespace MediawikiTranslator.Generators
                             String coatingCleanedLine = coatingReformater(cleanedLine, delimiter);
 							cleanedLine = coatingCleanedLine;
 						}
-						if (cleanedLine.Split(delimiter)[23].Length > 3)
-						{
-							String hornMelodyCleanedLine = hornMelodyReformat(cleanedLine);
-							cleanedLine = hornMelodyCleanedLine;
-
-                        }
 
 						//Processing row
 						string[]? fields = cleanedLine.Split(delimiter);
 						Console.Write("This Game has :" + fields.Length + " fields");
-						Datum weapon;
-                        if (fields.Length == 28)
-						{
-                            weapon = ParseWeaponFromLineRS(fields);
-                            weapon.Decos = ParseDecosFromLineRS(fields);
-                        }
-                        else
-						{
-                            weapon = ParseWeaponFromLine(fields);
-                            weapon.Decos = ParseDecosFromLine(fields);
-                        }	
+						Datum weapon = ParseWeaponFromLine(fields);
+						weapon.Decos = ParseDecosFromLine(fields);
 						List<string[]> sharpnessFinal = [];
 
 						if (!fields[16].Contains("n/a"))
@@ -631,7 +616,7 @@ namespace MediawikiTranslator.Generators
 
 				String beginningOfLine = line.Substring(0, startIndexSharpness).Replace("\"\"", "~").Replace("\"","").Replace("~","\"\"");
 				String endOfLine = line.Substring(startIndexSharpnessTwo + endIndexSharpness + endIndexSharpnessTwo, line.Length - (startIndexSharpnessTwo + endIndexSharpness + endIndexSharpnessTwo));
-				String newLine = substringSharpness.Replace(", ", " ").Replace(","," ") + "," + substringSharpnessTwo.Replace(", ", " ").Replace(",", " ");
+				String newLine = substringSharpness.Replace(",", "") + "," + substringSharpnessTwo.Replace(",", "");
 
 				SharpnessCleanedline = beginningOfLine + newLine + endOfLine;
 
@@ -681,15 +666,6 @@ namespace MediawikiTranslator.Generators
             return coatingCleanedLine;
 		}
 
-		public static String hornMelodyReformat(String line)
-		{
-			int melodyIndex = line.IndexOf(",,,,,,\"") + 5;
-			String melodySubstring = line.Substring(melodyIndex);
-			String replacementString = melodySubstring.Replace("\"", "").Replace(", ", ";");
-			line = line.Substring(0, melodyIndex) + replacementString;
-            return line;
-		}
-
         // Very straightforward but also sensible
         private static Datum ParseWeaponFromLine(string[] lineFields)
 		{
@@ -726,43 +702,7 @@ namespace MediawikiTranslator.Generators
 			};
 		}
 
-        private static Datum ParseWeaponFromLineRS(string[] lineFields)
-        {
-            bool? elementHidden = lineFields[9].Contains("(");
-
-            string[] splitNotes = lineFields[23].Split(';');
-
-			//aperantlly Rise is the only game that does not have diffrent notes for different HH so the melodies will stay blank
-            string? note1 = splitNotes.Length > 0 ? splitNotes[0] : null;
-            string? note2 = splitNotes.Length > 1 ? splitNotes[1] : null;
-            string? note3 = splitNotes.Length > 2 ? splitNotes[2] : null;
-
-
-            return new Datum()
-            {
-                CanForge = lineFields[0] != "" ? true : null,
-                CanRollback = lineFields[1] != "" ? true : null,
-                Name = lineFields[2].IndexOf("\"\"") > 0 ? lineFields[2].Replace("\"\"", "\"") : lineFields[2],
-                Parent = lineFields[3].IndexOf("\"\"") > 0 ? lineFields[3].Substring(1, lineFields[3].Length - 2) : lineFields[3],
-                IconType = lineFields[4],
-                Rarity = GetIntFieldOrEmpty(lineFields[5]),
-                Attack = GetIntFieldOrEmpty(lineFields[6]).ToString(),
-                Defense = lineFields[7].Contains("-") ? null : GetIntFieldOrEmpty(lineFields[7]).ToString(),
-                Element = lineFields[8],
-                ElementDamage = (elementHidden == true ? "(" : "") + GetIntFieldOrEmpty(lineFields[9].Replace("(", "").Replace(")", "").ToString()) + (elementHidden == true ? ")" : ""),
-                Affinity = GetIntFieldOrEmpty(lineFields[10]),
-				RampageDeco = lineFields[15],
-                CBPhialType = lineFields[18].Replace(" Phial", ""),
-                GLShellingType = lineFields[19] + " " + lineFields[20],
-                HBGSpecialAmmoType = lineFields[21],
-                HBGDeviation = lineFields[22],
-                IGKinsectBonus = lineFields[24],
-                LBGSpecialAmmoType = lineFields[25],
-                LBGDeviation = lineFields[26],
-                SAPhialType = lineFields[27].Replace(" Phial", "")
-            };
-        }
-        private static string ParseDecosFromLine(string[] fields)
+		private static string ParseDecosFromLine(string[] fields)
 		{
 			string decoArray = "[";
 			int[] decos = [GetIntFieldOrEmpty(fields[12]), GetIntFieldOrEmpty(fields[13]), GetIntFieldOrEmpty(fields[14])];
@@ -781,26 +721,7 @@ namespace MediawikiTranslator.Generators
 			return decoArray + "]";
 		}
 
-        private static string ParseDecosFromLineRS(string[] fields)
-        {
-            string decoArray = "[";
-            int[] decos = [GetIntFieldOrEmpty(fields[11]), GetIntFieldOrEmpty(fields[12]), GetIntFieldOrEmpty(fields[13])];
-            for (int decoLvl = 1; decoLvl < 5; decoLvl++)
-            {
-                int cnt = decos.Count(x => x == decoLvl);
-                if (cnt > 0)
-                {
-                    if (decoArray != "[")
-                    {
-                        decoArray += ", ";
-                    }
-                    decoArray += $"{{\"Level\":\"{decoLvl}\",\"Qty\":\"{cnt}\",\"IsRampage\":false}}";
-                }
-            }
-            return decoArray + "]";
-        }
-
-        private static SharpnessData ParseSharpness1FromLine(String field)
+		private static SharpnessData ParseSharpness1FromLine(String field)
 		{
 			String[] sharpness = field.Replace("[","").Replace("]","").Replace("\"","").Split(" ");
 			return new SharpnessData()
