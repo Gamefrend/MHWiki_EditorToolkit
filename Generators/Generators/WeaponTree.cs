@@ -546,6 +546,7 @@ namespace MediawikiTranslator.Generators
                 string[]? lines = csvFile.Split('\n');
                 foreach (String line in lines)
                 {
+                    Console.WriteLine(line);
                     if (line.Split(delimiter).Length > 10)
                     {
 
@@ -572,9 +573,8 @@ namespace MediawikiTranslator.Generators
 
                         //Processing row
                         string[]? fields = cleanedLine.Split(delimiter);
-                        Console.Write("This Game has :" + fields.Length + " fields");
                         Datum weapon;
-                        if (fields.Length == 28)
+                        if (fields.Length == 29)
                         {
                             weapon = ParseWeaponFromLineRS(fields);
                             weapon.Decos = ParseDecosFromLineRS(fields);
@@ -675,12 +675,16 @@ namespace MediawikiTranslator.Generators
                 coatingStartIndex = line.IndexOf(",\"") + 1;
 
             }
-            String coatingSubstring = line.Substring(coatingStartIndex + 1);
-            Console.WriteLine(coatingStartIndex);
-            int coatingSubstringLength = coatingSubstring.IndexOf("\"");
-            coatingSubstring = coatingSubstring.Substring(0, coatingSubstringLength);
-            coatingCleanedLine = line.Replace(coatingSubstring, coatingSubstring.Replace(", ", " ").Replace("Close Range", "Close-Range"));
-            return coatingCleanedLine;
+            if (!line.Contains(",Close-range,,"))
+            {
+                String coatingSubstring = line.Substring(coatingStartIndex + 1);
+                Console.WriteLine(coatingStartIndex);
+                int coatingSubstringLength = coatingSubstring.IndexOf("\"");
+                coatingSubstring = coatingSubstring.Substring(0, coatingSubstringLength);
+                coatingCleanedLine = line.Replace(coatingSubstring, coatingSubstring.Replace(", ", " ").Replace("Close Range", "Close-Range"));
+                return coatingCleanedLine;
+            }
+            return line;
         }
 
         public static String hornMelodyReformat(String line)
@@ -754,14 +758,15 @@ namespace MediawikiTranslator.Generators
                 ElementDamage = (elementHidden == true ? "(" : "") + GetIntFieldOrEmpty(lineFields[9].Replace("(", "").Replace(")", "").ToString()) + (elementHidden == true ? ")" : ""),
                 Affinity = GetIntFieldOrEmpty(lineFields[10]),
                 RampageDeco = lineFields[15],
-                CBPhialType = lineFields[18].Replace(" Phial", ""),
-                GLShellingType = lineFields[19] + " " + lineFields[20],
-                HBGSpecialAmmoType = lineFields[21],
-                HBGDeviation = lineFields[22],
-                IGKinsectBonus = lineFields[24],
-                LBGSpecialAmmoType = lineFields[25],
-                LBGDeviation = lineFields[26],
-                SAPhialType = lineFields[27].Replace(" Phial", "")
+                BoCoatings = lineFields.Contains("Paralysis") ? lineFields[18].Replace("\"", "").Replace(" ", ",").Replace("Paralysis", "Para") : lineFields[18].Replace("\"", "").Replace(" ", ","),
+                CBPhialType = lineFields[19].Replace(" Phial", ""),
+                GLShellingType = lineFields[20] + " " + lineFields[21],
+                HBGSpecialAmmoType = lineFields[22],
+                HBGDeviation = lineFields[23],
+                IGKinsectBonus = lineFields[25],
+                LBGSpecialAmmoType = lineFields[26],
+                LBGDeviation = lineFields[27],
+                SAPhialType = lineFields[28].Replace(" Phial", "")
             };
         }
         private static string ParseDecosFromLine(string[] fields)
